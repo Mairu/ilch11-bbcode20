@@ -25,7 +25,7 @@ Das Modul ersetzt den integrierten BBCode, mit mehr Funktionen.
   - include/templates/forum/postedit.htm
   - include/templates/forum/pm/new.htm
   Informationen dazu kannst du in der install.html finden
-- nach dem Upload der Dateien bbcode\_install.php aufrufen (http://www.deineseite.de/bbcode\_install.php)
+- nach dem Upload der Dateien bbcode\_install.php aufrufen (http://www.deineseite.de/bbcode_install.php)
   und nach erfolgreichen Ausführen dann löschen
 - Optionen im Adminmenü einrichten und fertig
 
@@ -60,7 +60,7 @@ Das Modul ersetzt den integrierten BBCode, mit mehr Funktionen.
   - Fehler mit langen Dateinamen für Codecontainern behoben
   - Fehler mit Emailadressen behoben
   - rudimentäre Flashunterstützung (standardmäßig deaktiviert)
-  - bbcode\_install.php und bbcode\_update.php zusammengefasst, also einfach nur noch bbcode\_install.php aufrufen
+  - bbcode\_install.php und bbcode\_update.php zusammengefasst, also einfach nur noch bbcode_install.php aufrufen
 - vom 11.01.2008
   - Fehler wenn man alle Codes deaktiviert hatte und dann ein Quote oder Farbe einfügen wollte (interface.js)
 - vom 09.01.2008
@@ -71,7 +71,7 @@ Das Modul ersetzt den integrierten BBCode, mit mehr Funktionen.
   - kleine Fehler beseitig
 - vom 09.08.2007
   - Bilder die verkleinert dargestellt werden, sind nun mit dem Original verlinkt (es sei denn sie sind mit [url] anderweitig verlinkt worden)
-  - Man kann bei [img] und [shot] nun einen float-Wert mit angeben, also [img=left], [img=right] oder [img=none] (äquivalent bei shot)
+  - Man kann bei [img] und [shot] nun einen float-Wert mit angeben, also [img=left], [img=right] oder \[img=none] (äquivalent bei shot)
   damit wird das Bild vom Text umflossen
 - vom 08.07.2007
  - Einfügen einer Farbauswahlbox

@@ -3,11 +3,11 @@ Installationsanleitung für BBCode 2.0 Modul für Ilchclan 1.1
 
 ## Anleitung, wenn BBCode direkt nach der Ilchinstallation vorgenommen wird (ohne Module)
 1. Lade den kompletten Inhalt des upload Ordners auf deinen Webspace
-2. Führe die bbcode\_install.php aus und lösche sie wieder (www.deineseite.de/bbcode\_install.php)
+2. Führe die bbcode\_install.php aus und lösche sie wieder (www.deineseite.de/bbcode_install.php)
 
 ## Anleitung, wenn schon Module installiert wurde
 1.  Lade die bbcode\_install.php auf deinen Webspace und führe sie aus und lösche sie wieder (im Browser
-    www.deineseite.de/bbcode\_install.php aufrufen)
+    www.deineseite.de/bbcode_install.php aufrufen)
 2.  Wenn du keine Module hast, die an den folgenden Dateien etwas ändern
     * include/templates/gbook.htm
   	* include/templates/forum/newpost.htm
