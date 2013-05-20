@@ -71,7 +71,7 @@ class bbcode {
     //> Codeblock entschlüsseln und parsen!
     function _codeblock($codecid,$file=NULL,$firstline=1) {
         $string = $this->codecblocks[$codecid.':code'];
-        $string = htmlentities($string);
+        $string = htmlentities($string, ILCH_ENTITIES_FLAGS, ILCH_CHARSET);
 
         $string = str_replace("\t", '&nbsp; &nbsp;', $string);
         $string = str_replace('  ', '&nbsp; ', $string);
@@ -84,7 +84,7 @@ class bbcode {
     //> htmlblock entschlüsseln und parsen!
     function _htmlblock($codecid,$file=NULL,$firstline=1) {
         $string = $this->codecblocks[$codecid.':html'];
-        $string = htmlentities($string);
+        $string = htmlentities($string, ILCH_ENTITIES_FLAGS, ILCH_CHARSET);
 
         //> Highlight Modul Funktion checken ob sie existerit.
         if(function_exists("highlight_html")) {
@@ -102,7 +102,7 @@ class bbcode {
     //> cssblock entschlüsseln und parsen!
     function _cssblock($codecid,$file=NULL,$firstline=1) {
         $string = $this->codecblocks[$codecid.':css'];
-        $string = htmlentities($string);
+        $string = htmlentities($string, ILCH_ENTITIES_FLAGS, ILCH_CHARSET);
 
         //> Highlight Modul Funktion checken ob sie existerit.
         if(function_exists("highlight_css")) {
@@ -209,14 +209,19 @@ class bbcode {
 
     //> Badwords Filtern.
     function _badwords($string) {
-        //> Badwords aus der Datenbank laden!
-        $cfgBBCodeSql = db_query("SELECT fcBadPatter, fcBadReplace FROM prefix_bbcode_badword");
-        while ($row = db_fetch_object($cfgBBCodeSql) ) {
-            $pattern[] = '%' . preg_quote($row->fcBadPatter,'%') . '%iU';
-            $replace[] = $row->fcBadReplace;
+        static $search = null, $replace = null;
+        if ($search === null) {
+            //> Badwords aus der Datenbank laden!
+            $search = $replace = array();
+            $cfgBBCodeSql = db_query("SELECT fcBadPatter, fcBadReplace FROM prefix_bbcode_badword");
+            while ($row = db_fetch_object($cfgBBCodeSql) ) {
+                $search[] = $row->fcBadPatter;
+                $replace[] = $row->fcBadReplace;
+            }
         }
-        if(isset($pattern)) {
-            $string = preg_replace($pattern,$replace,$string);
+            
+        if(!empty($search)) {
+            $string = str_replace($search, $replace, $string);
         }
 
         return $string;
@@ -240,13 +245,29 @@ class bbcode {
     }
 
     //> Bilder auf Verkleinern via Javascript überprüfen.
-    function _img($string, $float='') {
-        if ($float == 'none' OR $float == 'left' OR $float == 'right') {
-          $float = 'style="float:'.$float.'; margin: 5px;" ';
-        } else {
-          $float = '';
+    function _img($string, $params = '') {
+        $imgParams = array();
+        $paramAr = explode(';', $params);
+        foreach ($paramAr as $param) {
+            if (in_array($param, array('none', 'left', 'right'))) {
+                $imgParams[] = 'style="float:' . $param . '; margin: 5px;"';
+            } elseif (preg_match('%^(\d+)(w|h)?$%', $param, $matches) === 1) {
+                if (!isset($matches[2])) {
+                    $type = 'w';
+                } else {
+                    $type = $matches[2];
+                }
+                $$type = $matches[1];
+            }
         }
-        $image = '<img src="'.$string.'" alt="" title="" border="0" class="bbcode_image" '.$float.'/>';
+        if (isset($w)) {
+            $imgParams[] = 'width="' . $w . '"';
+        }
+        if (isset($h)) {
+            $imgParams[] = 'height="' . $h . '"';
+        }
+        $image = '<img src="'.$string.'" alt="" title="" border="0" class="bbcode_image" '
+            . implode(' ', $imgParams) . '/>';
         return $image;
     }
 
@@ -322,23 +343,25 @@ class bbcode {
         $lines = explode("\n",$string);
 
         //> Patter Befehle die nicht gekürzt werden dürfen !!!
-        $pattern = array("%^(www)(.[-a-zA-Z0-9@:;\%_\+.~#?&//=]+?)%i",
-                         "%^(http|https|ftp)://{1}[-a-zA-Z0-9@:;\%_\+.~#?&//=]+?%i",
-                         "%(\[(url|img(=(left|right))?|shot(=(left|right))?)\](.*)\[/(url|img|shot)\])|(\[url=(.*)\])%i",
-                         "%\[(code|html|css|php|countdown)(=[^]]+)].*\[/(code|html|css|php|countdown)]%i",
-                         "%(\[flash)?]((http|https|ftp)://[a-z-0-9@:\%_\+.~#\?&/=,;]+)\[/flash]%i",
-                         "%\[list].*\[/list]%");
+        $pattern = array('%^www\.[-a-z0-9@:;\%_\+\.~#?&/=]+%i',
+                         '%^(http|https|ftp)://[-a-z0-9@:;\%_\+.~#?&/=]+%i',
+                         '%\[(list)].*\[/\\1]%',
+                         '~\[(img|url|code|html|css|php|countdown|list)(=[^\]]+)?].*\[/\\1]~',
+                         "%\[(flash)(( \w+=\'\d+\')*)].*\[/\\1]%i"
+        );
 
-        foreach($lines as $line) {
-            $words = explode(" ",$line);
-            foreach($words as $word)
+        foreach($lines as &$line) {
+            $words = explode(' ', $line);
+            foreach($words as &$word) {
                 if(strlen($word) > $this->info['WortMaxLaenge'] && $this->_checkpatterns($pattern, $word)) {
                     //Auskommentiert also Variante mit 'zulanges...Wort' zu gunsten von 'zulanges allesdazwischen Wort' (ohne ...)
                     //$maxd2 = sprintf("%00d",($this->info['WortMaxLaenge']/2));
-                    $string = wordwrap($string, $this->info['WortMaxLaenge']);
+                    $word = wordwrap($word, $this->info['WortMaxLaenge'], ' ', true);
                 }
             }
-        return $string;
+            $line = implode(' ', $words);
+        }
+        return implode("\n", $lines);
     }
 
     //> Geöffnete Ktext- Tags Nummerieren.
@@ -655,9 +678,9 @@ class bbcode {
         $string = $this->_badwords($string);
 
         //> BB Code der den Codeblock nicht betrifft.
-        //> Überprüfen ob die wörter nicht die maximal länge überschrieten.
+        //> Überprüfen ob die wörter nicht die maximal länge überschreiten.
         $string = $this->_shortwords($string);
-        $string = htmlentities($string);
+        $string = htmlentities($string, ILCH_ENTITIES_FLAGS, ILCH_CHARSET);
         $string = nl2br($string);
 
         if($this->permitted['url'] == true) {
@@ -763,7 +786,7 @@ class bbcode {
         if($this->permitted['color'] == true) {
             //> Format: [color=#xxxxxx]xxx[/color]
             $this->pattern[] = "%\[color=(#{1}[0-9a-zA-Z]+?)\](.+)\[\/color\]%Uis";
-            $this->replace[] = "<font color=\"$1\">$2</font>";
+            $this->replace[] = "<span style=\"color:$1\">$2</span>";
         }
 
         //> Darf BB Code [SIZE] dekodiert werden?
@@ -785,24 +808,23 @@ class bbcode {
         }
 
         //> Darf BB Code [IMG] dekodiert werden?
-        if($this->permitted['img'] == true) {
+        if ($this->permitted['img'] == true) {
             //> Format: [img]xxx.de[/img]
             $this->pattern[] = "%\[img\]([-a-zA-Z0-9@:\%_\+,.~#?&//=]+?)\[\/img\]%eUi";
             $this->replace[] = "\$this->_img('\$1')";
-      //> Format: [img=left|right]xxx.de[/img]
-      $this->pattern[] = "%\[img=(left|right)\]([-a-zA-Z0-9@:\%_\+,.~#?&//=]+?)\[\/img\]%eUi";
-          $this->replace[] = "\$this->_img('\$2','\$1')";
-    }
+            //> Format: [img=left|right]xxx.de[/img]
+            $this->pattern[] = "%\[img=([^\]]+)\]([-a-zA-Z0-9@:\%_\+,.~#?&//=]+?)\[\/img\]%eUi";
+            $this->replace[] = "\$this->_img('\$2','\$1')";
+        }
 
         //> Darf BB Code [SCREENSHOT] dekodiert werden?
         if($this->permitted['screenshot'] == true) {
             //> Format: [shot]xxx.de[/screenshot]
             $this->pattern[] = "%\[shot\]([-a-zA-Z0-9@:\%_\+.~#?&//=]+?)\[\/shot\]%eUi";
             $this->replace[] = "\$this->_screenshot('\$1')";
-      //> Format: [shot=left|right]xxx.de[/screenshot]
+            //> Format: [shot=left|right]xxx.de[/screenshot]
             $this->pattern[] = "%\[shot=(left|right)\]([-a-zA-Z0-9@:\%_\+.~#?&//=]+?)\[\/shot\]%eUi";
             $this->replace[] = "\$this->_screenshot('\$2','\$1')";
-
         }
 
         //> Farf BB Code [VIDEO] dekodiert werden?
@@ -823,6 +845,7 @@ class bbcode {
             $this->replace[] = "\$this->_countdown('\$1')";
         }
 
+        
         ###############################################
 
         //> Darf BB Code [QUOTE] dekodiert werden?
@@ -848,8 +871,16 @@ class bbcode {
             $this->replace[] = '$this->_flash("$3", trim("$1"));';
         }
 
+        // Invalide img,shot,url Tags entfernen
+        $this->pattern[] = "%\[(img|url|shot)(=([^\]]+))?].*\[/\\1]%Ui";
+        $this->replace[] = '';
+        
+        // Invalide flash Tags entfernen
+        $this->pattern[] = "%\[(flash)(( \w+=\'\d+\')*)].*\[/\\1]%i";
+        $this->replace[] = '';
+        
         //> String parsen
-        $string = preg_replace($this->pattern,$this->replace,$string);
+        $string = preg_replace($this->pattern, $this->replace, $string);
 
         //> Darf BB Code [QUOTE] dekodiert werden?
         if($this->permitted['quote'] == true) {
@@ -868,25 +899,25 @@ class bbcode {
         if($this->permitted['php'] == true) {
             $string = preg_replace("%\[php\](.+)\[\/php\]%esiU", '$this->_phpblock("$1")', $string);
             $string = preg_replace("%\[php=([^;]*);(\d+)\](.+)\[\/php\]%esiU", 'this->_phpblock("$3","$1","$2")', $string);
-              $string = preg_replace("%\[php=(.*)\](.+)\[\/php\]%esiU", '$this->_phpblock("$2","$1")', $string);
+            $string = preg_replace("%\[php=(.*)\](.+)\[\/php\]%esiU", '$this->_phpblock("$2","$1")', $string);
         }
 
         if($this->permitted['html'] == true) {
             $string = preg_replace("%\[html\](.+)\[\/html\]%esiU","\$this->_htmlblock('\$1')",$string);
             $string = preg_replace("%\[html=([^;]*);(\d+)\](.+)\[\/html\]%esiU","\$this->_htmlblock('\$3','\$1','\$2')",$string);
-              $string = preg_replace("%\[html=(.*)\](.+)\[\/html\]%esiU","\$this->_htmlblock('\$2','\$1')",$string);
+            $string = preg_replace("%\[html=(.*)\](.+)\[\/html\]%esiU","\$this->_htmlblock('\$2','\$1')",$string);
         }
 
         if($this->permitted['css'] == true) {
             $string = preg_replace("%\[css\](.+)\[\/css\]%esiU","\$this->_cssblock('\$1')",$string);
             $string = preg_replace("%\[css=([^;]*);(\d+)\](.+)\[\/css\]%esiU","\$this->_cssblock('\$3','\$1','\$2')",$string);
-      $string = preg_replace("%\[css=(.*)\](.+)\[\/css\]%esiU","\$this->_cssblock('\$2','\$1')",$string);
+            $string = preg_replace("%\[css=(.*)\](.+)\[\/css\]%esiU","\$this->_cssblock('\$2','\$1')",$string);
         }
 
         if($this->permitted['code'] == true) {
             $string = preg_replace("%\[code\](.+)\[\/code\]%esiU","\$this->_codeblock('\$1')",$string);
             $string = preg_replace("%\[code=([^;]*);(\d+)\](.+)\[\/code\]%esiU","\$this->_codeblock('\$3','\$1','\$2')",$string);
-              $string = preg_replace("%\[code=(.*)\](.+)\[\/code\]%esiU","\$this->_codeblock('\$2','\$1')",$string);
+            $string = preg_replace("%\[code=(.*)\](.+)\[\/code\]%esiU","\$this->_codeblock('\$2','\$1')",$string);
         }
 
         if($this->permitted['list'] == true) {
